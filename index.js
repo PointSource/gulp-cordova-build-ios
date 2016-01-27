@@ -17,7 +17,8 @@ var path = require('path'),
     cordova = cordovaLib.raw;
 
 // export the module
-module.exports = function(rm) {
+module.exports = function(options) {
+    options = options || {};
 
     return through.obj(function(file, enc, cb) {
         // Change the working directory
@@ -28,8 +29,10 @@ module.exports = function(rm) {
 
         cb();
     }, function(cb) {
-        var exists = fs.existsSync(path.join(cordovaLib.findProjectRoot(), 'platforms', 'ios')),
-            reAdd = exists === true && rm === true;
+        var iosPath = path.join(cordovaLib.findProjectRoot(), 'platforms', 'ios');
+
+        var exists = fs.existsSync(iosPath),
+            reAdd = exists === true && options.rm === true;
 
         Q.fcall(function() {
             if(reAdd) {
@@ -42,9 +45,28 @@ module.exports = function(rm) {
                 return cordova.platforms('add', 'ios');
             }
         }).then(function() {
+            var buildOptions = {
+                codeSignIdentity: options.codeSignIdentity,
+                provisioningProfile: options.provisioningProfile
+            };
+
             // Build the platform
-            return cordova.build({platforms: ['ios']});
-        }).then(cb).catch(function(err) {
+            return cordova.build({platforms: ['ios'], options: buildOptions});
+        }).then(function() {
+            var base = path.join(iosPath, 'build/device'),
+                cwd = process.env.PWD;
+            var filePath = path.join(base, '*.ipa');
+
+            // Push the file to the result set
+            self.push(new gutil.File({
+                base: base,
+                cwd: cwd,
+                path: filePath,
+                contents: fs.readFileSync(filePath)
+            }));
+
+            cb();
+        }).catch(function(err) {
             // Return an error if something happened
             cb(new gutil.PluginError('gulp-cordova-build-ios', err.message));
         });
