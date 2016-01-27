@@ -47,7 +47,9 @@ module.exports = function(options) {
         }).then(function() {
             var buildOptions = {
                 codeSignIdentity: options.codeSignIdentity,
-                provisioningProfile: options.provisioningProfile
+                provisioningProfile: options.provisioningProfile,
+                device: options.device,
+                release: options.release
             };
 
             // Build the platform
